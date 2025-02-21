@@ -45,8 +45,8 @@ Contributions are welcome! If you find bugs or want to add features, feel free t
 This project is open-source and available under the **MIT License**.
 
 ## Author
-Developed by **Bilal**
+**M-BILAL-WEB**
 
 ---
-For any queries, feel free to reach out!
+
 
