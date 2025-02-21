@@ -1,0 +1,506 @@
+ <!DOCTYPE html>
+ <html lang="en">
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>Process Scheduling Simulator</title>
+     <style>
+         body {
+             font-family: 'Arial', sans-serif;
+             margin: 0;
+             padding: 0;
+             background-color: #f0f8ff;
+         }
+         h1 {
+             text-align: center;
+             color: #333;
+             margin-top: 20px;
+         }
+         h2 {
+             color: #555;
+         }
+         h3 {
+             color: #444;
+         }
+         .container {
+             width: 80%;
+             margin: auto;
+             overflow: hidden;
+             background: #fff;
+             padding: 20px;
+             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+             border-radius: 8px;
+         }
+         table {
+             width: 100%;
+             border-collapse: collapse;
+             margin-top: 20px;
+         }
+         table, th, td {
+             border: 1px solid #ccc;
+         }
+         th, td {
+             padding: 12px;
+             text-align: center;
+         }
+         th {
+             background-color: #007bff;
+             color: white;
+         }
+         tr:nth-child(even) {
+             background-color: #f2f2f2;
+         }
+         button {
+             display: block;
+             margin: 20px auto;
+             padding: 10px 20px;
+             font-size: 16px;
+             background-color: #007bff;
+             color: white;
+             border: none;
+             border-radius: 5px;
+             cursor: pointer;
+         }
+         button:hover {
+             background-color: #0056b3; /* Darker blue on hover */
+         }
+         .process-input {
+             margin-bottom: 15px; 
+             padding-bottom: 10px; 
+             border-bottom: 1px solid #ccc; 
+         }
+        .bilal{
+            width: 30%;
+            margin-left: 35%;
+            margin-right: 50%;
+            font:  bold;
+            font-family: monospace;
+            font-size: 20px;
+        }
+        #processCountInput{
+            justify-items: center;
+        }
+        .processCount{
+            margin-top: 500px;
+        }
+       
+
+        #processInputs {
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr);
+            gap: 50px; 
+            margin: 50px 50px 50px 50px;
+        }
+
+        .process-input {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+
+     </style>
+ </head>
+ <body>
+        <div class="container">
+            <marquee behavior="" direction="" class="bilal">MADE BY BILAL</marquee>
+
+            <br><br>
+            <h1>Process Scheduling Simulator</h1>
+            <h3 style="text-align: center;">(for sjf, round robin and priority sceduling)</h3>
+            <br><br><br>
+            <div id="processCountInput">
+                <label for="processCount">Enter how many processes</label>
+                <input type="number" id="processCount" required><br><br>
+                  <!-- label for quantum time --> 
+                <div id="quantumInput" style="display:none;">
+                    <label for="quantumTime">Enter Quantum Time (for Round Robin):</label>
+                    <input type="number" id="quantumTime" required>
+                </div>
+ 
+                <button onclick="createProcessInputFields()">Submit</button>
+            </div>
+
+          
+            <div id="processInputs"></div>
+         
+           
+
+            <button onclick="startSimulation()">Start Simulation</button>
+ 
+            <h2>Results</h2>
+            <div id="results"></div>
+        </div>
+     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+     <script>
+
+         let maxProcesses = 0;
+ 
+         function createProcessInputFields() {
+             const countInput = document.getElementById('processCount');
+             maxProcesses = parseInt(countInput.value);
+ 
+             const container = document.getElementById('processInputs');
+             container.innerHTML = ''; // Clear existing inputs
+ 
+             for (let i = 0; i < maxProcesses; i++) {
+                 const processDiv = document.createElement('div');
+                 processDiv.className = 'process-input';
+                 processDiv.innerHTML = `
+                     <h3>Process ${i + 1}</h3>
+                     <p>Name: <input type="text" id="name${i}" required></p>
+                     <p>Arrival Time: <input type="number" id="arrival${i}" required></p>
+                     <p>Burst Time: <input type="number" id="burst${i}" required></p>
+                     <p>Priority: <input type="number" id="priority${i}" required></p>
+   
+                 `;
+                 container.appendChild(processDiv);
+             }
+             document.getElementById('quantumInput').style.display = 'block';
+
+            // Clear previous results when creating new input fields
+            document.getElementById('results').innerHTML = '';
+         }
+ 
+         class Job {
+             constructor(name, arrivalTime, burstTime, priority) {
+                 this.name = name;
+                 this.arrivalTime = arrivalTime;
+                 this.burstTime = burstTime;
+                 this.remainingTime = burstTime; // For Round Robin
+                 this.priority = priority; // For Priority Scheduling
+              
+                 this.completionTime = 0; // To track completion time
+                 this.waitingTime = 0; // To track waiting time
+                 this.turnaroundTime = 0; // To track turnaround time
+             }
+         }
+                 
+        //  validation 
+        function validateProcessInputs() {
+            for (let i = 0; i < maxProcesses; i++) {
+                const name = document.getElementById(`name${i}`).value.trim();
+                const arrivalTime = parseInt(document.getElementById(`arrival${i}`).value);
+                const burstTime = parseInt(document.getElementById(`burst${i}`).value);
+                const priority = parseInt(document.getElementById(`priority${i}`).value);
+               
+
+                if (!name) {
+                    alert(`Process ${i + 1}: Name cannot be empty.`);
+                    return false;
+                }
+                if (isNaN(arrivalTime) || arrivalTime < 0) {
+                    alert(`Process ${i + 1}: Arrival Time must be a non-negative number and must not be empty.`);
+                    return false;
+                }
+                if (isNaN(burstTime) || burstTime <= 0) {
+                    alert(`Process ${i + 1}: Burst Time must be a positive number and must not be empty.`);
+                    return false;
+                }
+                if (isNaN(priority) || priority < 0) {
+                    alert(`Process ${i + 1}: Priority must be a non-negative number and must not be empty.`);
+                    return false;
+                }
+            
+            }
+            
+            const quantum = parseInt(document.getElementById('quantumTime').value);
+            if (isNaN(quantum) || quantum <= 0) {
+                alert("Quantum Time must be a positive number.");
+                return false;
+            }
+            return true;
+        }
+
+        function sjfScheduling(jobs) {
+            jobs.sort((a, b) => a.arrivalTime - b.arrivalTime || a.burstTime - b.burstTime);
+            let time = 0;
+ 
+            jobs.forEach(job => {
+                if (time < job.arrivalTime) time = job.arrivalTime; // Wait for job to arrive
+                time += job.burstTime; // Execute job
+                job.completionTime = time;
+                job.turnaroundTime = job.completionTime - job.arrivalTime;
+                job.waitingTime = job.turnaroundTime - job.burstTime;
+            });
+ 
+            return jobs; // Return modified jobs array with computed times
+        }
+ 
+        function roundRobinScheduling(jobs, quantum) {
+            let time = 0;
+            let queue = [...jobs]; // Use a queue for proper RR
+            let results = [];
+
+            // Add arrival time check for fairness
+            queue = queue.filter(job => job.arrivalTime <= time);
+            const waitingQueue = [...queue];
+
+            while (waitingQueue.length > 0) {
+                const job = waitingQueue.shift(); // Dequeue
+
+                if (time < job.arrivalTime) {
+                    time = job.arrivalTime; // Wait until the job arrives
+                }
+
+                const executionTime = Math.min(job.remainingTime, quantum);
+                time += executionTime; // Execute for quantum or remaining time
+                job.remainingTime -= executionTime;
+
+                // If process completes
+                if (job.remainingTime === 0) {
+                    job.completionTime = time;
+                    job.turnaroundTime = job.completionTime - job.arrivalTime;
+                    job.waitingTime = job.turnaroundTime - job.burstTime;
+                    results.push(job);
+                } else {
+                    // Requeue unfinished job if any other job arrived
+                    const newArrivals = jobs.filter(
+                        (j) => j.arrivalTime <= time && j.remainingTime > 0 && !waitingQueue.includes(j) && !results.includes(j)
+                    );
+                    waitingQueue.push(...newArrivals);
+                    waitingQueue.push(job); // Add the current process back to the end
+                }
+
+                // Add newly arrived processes to the queue
+                const newJobs = jobs.filter(
+                    (j) => j.arrivalTime <= time && j.remainingTime > 0 && !waitingQueue.includes(j) && !results.includes(j)
+                );
+                waitingQueue.push(...newJobs);
+            }
+
+            return results; // Return completed jobs with computed times
+        }
+
+ 
+        function priorityScheduling(jobs) {
+            let time = 0;
+            let results = [];
+ 
+            while (jobs.length > 0) {
+                const availableJobs = jobs.filter(job => job.arrivalTime <= time);
+                
+                if (availableJobs.length === 0) {
+                    time++; // No jobs available, increment time
+                    continue;
+                }
+ 
+                availableJobs.sort((a, b) => a.priority - b.priority || a.arrivalTime - b.arrivalTime);
+                
+                const currentJob = availableJobs[0]; // Get highest priority available job
+ 
+                time += currentJob.burstTime; // Execute current job
+                currentJob.completionTime = time;
+                currentJob.turnaroundTime = currentJob.completionTime - currentJob.arrivalTime;
+                currentJob.waitingTime = currentJob.turnaroundTime - currentJob.burstTime;
+ 
+                results.push(currentJob);
+                jobs.splice(jobs.indexOf(currentJob), 1); // Remove completed job
+            }
+            return results; // Return completed jobs with computed times
+        }
+ 
+        function calculateAverages(results) {
+            const totalTAT = results.reduce((sum, job) => sum + job.turnaroundTime, 0);
+            const totalWT = results.reduce((sum, job) => sum + job.waitingTime, 0);
+            
+            return {
+                avgTAT: totalTAT / results.length,
+                avgWT: totalWT / results.length,
+            };
+        }
+ 
+        function displayGanttChart(title, results) {
+            const resultDiv = document.getElementById('results');
+            let ganttHtml = `<h3>${title} - Gantt Chart</h3>`;
+            ganttHtml += `<div style="display: flex; align-items: center; margin-top: 20px;">`;
+
+            let time = 0;
+            results.forEach(job => {
+                const width = (job.burstTime / results.reduce((sum, j) => sum + j.burstTime, 0)) * 100; // Dynamic width based on burst time
+                ganttHtml += `
+                <div style="flex: ${job.burstTime}; text-align: center; background-color: #007bff; color: white; margin-right: 2px; border-radius: 4px;">
+                <span>${job.name}</span><br>
+                <small>${time} - ${time + job.burstTime}</small>
+                </div>
+                `       ;
+                time += job.burstTime;
+            });
+
+            ganttHtml += `</div>`;
+            resultDiv.innerHTML += ganttHtml;
+        }
+
+        function displayComparisonGraph(sjfAverages, rrAverages, priorityAverages) {
+            const graphContainer = document.createElement('div');
+            graphContainer.innerHTML = `<h3>Algorithm Comparison (Graph)</h3>
+                <canvas id="comparisonChart" width="400" height="200"></canvas>`;
+            document.getElementById('results').appendChild(graphContainer);
+        
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['SJF', 'Round Robin', 'Priority Scheduling'],
+                    datasets: [
+                        {
+                            label: 'Average Turnaround Time',
+                            data: [sjfAverages.avgTAT, rrAverages.avgTAT, priorityAverages.avgTAT],
+                            backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: 'Average Waiting Time',
+                            data: [sjfAverages.avgWT, rrAverages.avgWT, priorityAverages.avgWT],
+                            backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                            borderColor: 'rgba(255, 159, 64, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                   plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparison of Scheduling Algorithms',
+                        },
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                        },
+                    },
+                },
+            });
+        }
+
+
+        function startSimulation() {
+            if (!validateProcessInputs()) {
+                return; // Stop simulation if validation fails.
+            }
+            const jobs = [];
+            const quantum = parseInt(document.getElementById('quantumTime').value);
+            for (let i = 0; i < maxProcesses; i++) {
+                const nameInput = document.getElementById(`name${i}`);
+                const arrivalInput = document.getElementById(`arrival${i}`);
+                const burstInput = document.getElementById(`burst${i}`);
+                const priorityInput = document.getElementById(`priority${i}`);
+               
+
+                if (nameInput && nameInput.value && arrivalInput && burstInput && priorityInput && quantumInput) {
+                    jobs.push(new Job(
+                        nameInput.value,
+                        parseInt(arrivalInput.value),
+                        parseInt(burstInput.value),
+                        parseInt(priorityInput.value),
+                        parseInt(quantumInput.value)
+                    ));
+                }
+            }
+ 
+            // Clear previous results before displaying new ones.
+            document.getElementById('results').innerHTML = '';
+ 
+            const sjfResults = sjfScheduling([...jobs]);
+            const rrResults = roundRobinScheduling([...jobs], quantum); // Quantum of 2
+            const priorityResults = priorityScheduling([...jobs]);
+ 
+            displayResults("SJF Results", sjfResults);
+            displayResults("Round Robin Results", rrResults);
+            displayResults("Priority Scheduling Results", priorityResults);
+            displayGanttChart("SJF Gantt Chart", sjfResults);
+            displayGanttChart("Round Robin Gantt Chart", rrResults);
+            displayGanttChart("Priority Scheduling Gantt Chart", priorityResults);
+            
+
+ 
+            const sjfAverages = calculateAverages(sjfResults);
+            const rrAverages = calculateAverages(rrResults);
+            const priorityAverages = calculateAverages(priorityResults);
+ 
+            displayAverageResults(sjfAverages, rrAverages, priorityAverages);
+            displayBestAlgorithm(sjfAverages, rrAverages, priorityAverages);
+            displayComparisonGraph(sjfAverages, rrAverages, priorityAverages);
+        }
+       
+
+        function displayResults(title, results) {
+            const resultDiv = document.getElementById('results');
+            let tableHtml = `<h3>${title}</h3><table><tr><th>Name</th><th>Arrival Time</th><th>Burst Time</th><th>Completion Time</th><th>Turnaround Time</th><th>Waiting Time</th></tr>`;
+            
+            results.forEach(job => {
+                tableHtml += `<tr>
+                                <td>${job.name}</td>
+                                <td>${job.arrivalTime}</td>
+                                <td>${job.burstTime}</td>
+                                <td>${job.completionTime}</td>
+                                <td>${job.turnaroundTime}</td>
+                                <td>${job.waitingTime}</td>
+                              </tr>`;
+            });
+ 
+            tableHtml += `</table>`;
+            resultDiv.innerHTML += tableHtml; // Append new results
+        }
+ 
+        function displayAverageResults(sjfAverages, rrAverages, priorityAverages) {
+            const resultDiv = document.getElementById('results');
+            resultDiv.innerHTML += `<h3>Average Results Comparison</h3>`;
+            resultDiv.innerHTML += `<table>
+                <tr>
+                    <th>Algorithm</th>
+                    <th>Average Turnaround Time</th>
+                    <th>Average Waiting Time</th>
+                </tr>
+                <tr>
+                    <td>SJF</td>
+                    <td>${sjfAverages.avgTAT.toFixed(2)}</td>
+                    <td>${sjfAverages.avgWT.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Round Robin</td>
+                    <td>${rrAverages.avgTAT.toFixed(2)}</td>
+                    <td>${rrAverages.avgWT.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Priority Scheduling</td>
+                    <td>${priorityAverages.avgTAT.toFixed(2)}</td>
+                    <td>${priorityAverages.avgWT.toFixed(2)}</td>
+                </tr>
+            </table>`;
+        }
+ 
+        
+        function displayBestAlgorithm(sjfAverages, rrAverages, priorityAverages) {
+            const resultDiv = document.getElementById('results');
+            let bestAlgorithm;
+ 
+            if (sjfAverages.avgWT <= rrAverages.avgWT && sjfAverages.avgWT <= priorityAverages.avgWT) {
+                bestAlgorithm = "SJF";
+            } else if (rrAverages.avgWT <= sjfAverages.avgWT && rrAverages.avgWT <= priorityAverages.avgWT) {
+                bestAlgorithm = "Round Robin";
+            } else {
+                bestAlgorithm = "Priority Scheduling";
+            }
+ 
+           resultDiv.innerHTML += `<h1>The Best Algorithm Based on Average Waiting Time is: ${bestAlgorithm}</h1>`;
+        }
+ 
+        createProcessInputFields(); // Initialize input fields on load
+     </script>
+ 
+ </body>
+ 
+ </html>
+ 
+ 
+
